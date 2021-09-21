@@ -1,0 +1,16 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# VSCode files
+.vscode/
+
+# Static files
+static/
+
+# Handy for secrets
+private_key.json
+regr.json
+
+# Python3 virtual environment
+.venv/
