@@ -40,11 +40,13 @@ def azure_dns_operation(subscription, resource_group, zone, domain, value, opera
         return azure.mgmt.dns.DnsManagementClient(identity, subscription)
 
     # helper function - remove zone name from domain string
+    # assuming DNS-01 challenge (_acme-challenge subdomain)
     def _get_name(domain, zone):
-        if domain == zone:
-            return "_acme-challenge"
-        elif domain.endswith(".{}".format(zone)):
-            return "_acme-challenge.{}".format(domain[:-len(".{}".format(zone))])
+        subdomain = "_acme-challenge"
+        stripped = domain.removesuffix(zone)
+        if len(stripped) == 0:
+            return subdomain
+        return "{}.{}".format(subdomain, stripped.removesuffix("."))
 
     client = _get_dns_client(subscription)
     log.info("Azure DNS client initialized")
