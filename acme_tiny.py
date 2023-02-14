@@ -150,13 +150,14 @@ def get_crt(private_key, regr, csr, directory_url, out):
         while result is None or result['status'] in pending_statuses:
             if (time.time() - t0 > 600):  # 10 minutes timeout
                 raise ValueError("Polling timeout")
-            if result['status'] == 'invalid':
+            if result is not None and result['status'] == 'invalid':
                 for challenge_result in result['challenges']:
                     # 400 may be returned for transient errors (NXDOMAIN)
-                    if challenge_result["error"]["status"] == "400":
+                    returned_status_code = challenge_result["error"]["status"]
+                    if returned_status_code == "400":
                         continue  # ignore
                     else:
-                        raise ValueError("Unexpected return code")
+                        raise ValueError("Unexpected status code: {}".format(returned_status_code))
             time.sleep(0 if result is None else 10)  # try every 10 seconds
             result, _, _ = _send_signed_request(url, None, err_msg)
         return result
