@@ -59,7 +59,7 @@ stages:
 
           - script: |
               pip3 install poetry==1.3.2
-              poetry install --no-root
+              poetry install --no-root && poetry shell
             name: InstallPythonDependencies
             condition: eq(variables.require_new_certificate, True)
 
