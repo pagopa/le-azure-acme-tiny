@@ -63,13 +63,10 @@ stages:
             name: InstallPythonDependencies
             condition: eq(variables.require_new_certificate, True)
 
-          - task: PythonScript@0
+          - script: |
+              poetry run python generate_csr.py --common-name $(csr_common_name) --out csr.der --rsa-key-size 2048
             name: GenerateCertificateSigningRequest
             condition: and(succeeded(), eq(variables.require_new_certificate, True))
-            inputs:
-              scriptSource: filePath
-              scriptPath: generate_csr.py
-              arguments: --common-name $(csr_common_name) --out csr.der --rsa-key-size 2048
 
           - task: Bash@3
             name: KeysToFile
@@ -80,7 +77,8 @@ stages:
                 printf "%s\n" '$(LE_PRIVATE_KEY_JSON)' > private_key.json
                 printf "%s\n" '$(LE_REGR_JSON)' > regr.json
 
-          - task: PythonScript@0
+          - script: |
+              poetry run python acme_tiny.py --private-key private_key.json --regr regr.json --csr csr.der --out certificate_chain.pem
             name: ACMEv2
             condition: and(succeeded(), eq(variables.require_new_certificate, True))
             env:
@@ -88,10 +86,6 @@ stages:
               AZURE_SUBSCRIPTION_ID: $(LE_AZURE_SUBSCRIPTION_ID)
               AZURE_CLIENT_ID: $(LE_AZURE_CLIENT_ID)
               AZURE_CLIENT_SECRET: $(LE_AZURE_CLIENT_SECRET)
-            inputs:
-              scriptSource: filePath
-              scriptPath: acme_tiny.py
-              arguments: --private-key private_key.json --regr regr.json --csr csr.der --out certificate_chain.pem
 
           - task: AzureCLI@2
             name: SaveCertificateInKeyVault
