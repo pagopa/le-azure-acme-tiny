@@ -52,6 +52,11 @@ stages:
           require_new_certificate: $[ dependencies.RenewalDecision.outputs['GetCertificateFromKeyVaultAndDecide.require_new_certificate'] ]
 
         steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "3.9"
+              addToPath: true
+
           - script: |
               pip3 install poetry==1.3.2
               poetry install --no-root
