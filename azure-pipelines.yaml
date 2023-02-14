@@ -79,8 +79,6 @@ stages:
 
           - script: |
               poetry run python acme_tiny.py --private-key private_key.json --regr regr.json --csr csr.der --out certificate_chain.pem
-              poetry run bash -c "ls -la && pwd"
-              poetry run bash -c "echo $(Build.SourcesDirectory)"
             name: ACMEv2
             condition: and(succeeded(), eq(variables.require_new_certificate, True))
             env:

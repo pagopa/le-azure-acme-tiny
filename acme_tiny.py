@@ -290,7 +290,7 @@ def get_crt(private_key, regr, csr, directory_url, out):
             with open(out, "wb") as f:
                 f.write(bytes(certificate_pem, "utf-8"))
             log.info("Certificate bundle saved to %s", out)
-        
+
         except Exception as ex:
             log.error("%s", repr(ex))
 
