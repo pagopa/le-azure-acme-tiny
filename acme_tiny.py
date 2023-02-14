@@ -19,7 +19,7 @@ import cryptography
 import jwcrypto.jwk
 
 DEFAULT_DIRECTORY_URL = "https://acme-v02.api.letsencrypt.org/directory"
-DEFAULT_DNS_TTL_SEC = 300
+DEFAULT_DNS_TTL_SEC = 30
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.addHandler(logging.StreamHandler())
@@ -148,9 +148,16 @@ def get_crt(private_key, regr, csr, directory_url, out):
     def _poll_until_not(url, pending_statuses, err_msg):
         result, t0 = None, time.time()
         while result is None or result['status'] in pending_statuses:
-            if (time.time() - t0 > 3600):  # 1 hour timeout
+            if (time.time() - t0 > 600):  # 10 minutes timeout
                 raise ValueError("Polling timeout")
-            time.sleep(0 if result is None else 2)
+            if result['status'] == 'invalid':
+                for challenge_result in result['challenges']:
+                    # 400 may be returned for transient errors (NXDOMAIN)
+                    if challenge_result["error"]["status"] == "400":
+                        continue  # ignore
+                    else:
+                        raise ValueError("Unexpected return code")
+            time.sleep(0 if result is None else 10)  # try every 10 seconds
             result, _, _ = _send_signed_request(url, None, err_msg)
         return result
 
@@ -248,45 +255,51 @@ def get_crt(private_key, regr, csr, directory_url, out):
         # modify DNS record
         azure_dns_operation(subscription, resource_group,
                             zone, domain, txt_record_value, "update")
+        try:
+            # wait for dns
+            time.sleep(DEFAULT_DNS_TTL_SEC)
+            _send_signed_request(
+                challenge['url'], {}, "Error submitting challenges: {}".format(domain))
 
-        # check until the challenge is done
-        _send_signed_request(
-            challenge['url'], {}, "Error submitting challenges: {}".format(domain))
-        authorization = _poll_until_not(
-            auth_url, ["pending"], "Error checking challenge status for {}".format(domain))
-        if authorization['status'] != "valid":
-            raise ValueError(
-                "Challenge did not pass for {}: {}".format(domain, authorization))
-        log.info("%s verified!", domain)
+            # check until the challenge is done
+            authorization = _poll_until_not(
+                auth_url, ["pending", "invalid"], "Error checking challenge status for {}".format(domain))
+            if authorization['status'] != "valid":
+                raise ValueError(
+                    "Challenge did not pass for {}: {}".format(domain, authorization))
+            log.info("%s verified!", domain)
 
-    # finalize the order with the csr
-    log.info("Asking to sign the certificate...")
-    _send_signed_request(order['finalize'], {
-                         "csr": _b64(csr_raw)}, "Error finalizing order")
+            # finalize the order with the csr
+            log.info("Asking to sign the certificate...")
+            _send_signed_request(order['finalize'], {
+                                "csr": _b64(csr_raw)}, "Error finalizing order")
 
-    # poll the order to monitor when it's done
-    order = _poll_until_not(order_headers['Location'], [
-                            "pending", "processing"], "Error checking order status")
-    if order['status'] != "valid":
-        raise ValueError("Order failed: {}".format(order))
-    log.info("Order is valid")
+            # poll the order to monitor when it's done
+            order = _poll_until_not(order_headers['Location'], [
+                                    "pending", "processing"], "Error checking order status")
+            if order['status'] != "valid":
+                raise ValueError("Order failed: {}".format(order))
+            log.info("Order is valid")
 
-    # download the certificate
-    certificate_pem, _, _ = _send_signed_request(
-        order['certificate'], None, "Certificate download failed")
-    log.info("Certificate signed!")
+            # download the certificate
+            certificate_pem, _, _ = _send_signed_request(
+                order['certificate'], None, "Certificate download failed")
+            log.info("Certificate signed!")
 
-    with open(out, "wb") as f:
-        f.write(bytes(certificate_pem, "utf-8"))
-    log.info("Certificate bundle saved to %s", out)
+            with open(out, "wb") as f:
+                f.write(bytes(certificate_pem, "utf-8"))
+            log.info("Certificate bundle saved to %s", out)
+        
+        except Exception as ex:
+            log.error("%s", repr(ex))
 
-    # attempt to cleanup DNS records
+    # attempt to always cleanup DNS records
     for domain in domains:
         try:
             azure_dns_operation(subscription, resource_group,
                                 zone, domain, txt_record_value, "delete")
         except Exception as ex:
-            log.info("Exception \"%s\" when cleaning up TXT record on %s, skipping this record", str(ex))
+            log.error("%s", repr(ex))
             continue  # ignore failures here
 
 

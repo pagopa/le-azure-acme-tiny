@@ -2,8 +2,8 @@ pool:
   vmImage: "ubuntu-20.04"
 
 parameters:
-  - name: 'force_renew_cert'
-    displayName: 'Force the existing certificate to be renewed anyway'
+  - name: "force_renew_cert"
+    displayName: "Force the existing certificate to be renewed anyway"
     type: boolean
     default: False
     values:
@@ -13,14 +13,12 @@ parameters:
 stages:
   - stage: SignCertificate
     jobs:
-
       - job: RenewalDecision
         steps:
-
           - task: AzureCLI@2
             name: GetCertificateFromKeyVaultAndDecide
             inputs:
-              azureSubscription: '$(KEY_VAULT_SERVICE_CONNECTION)'
+              azureSubscription: "$(KEY_VAULT_SERVICE_CONNECTION)"
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: |
@@ -54,8 +52,9 @@ stages:
           require_new_certificate: $[ dependencies.RenewalDecision.outputs['GetCertificateFromKeyVaultAndDecide.require_new_certificate'] ]
 
         steps:
-
-          - script: pip3 install --require-hashes --requirement requirements.txt
+          - script: |
+              pip3 install poetry==1.3.2
+              poetry install --no-root
             name: InstallPythonDependencies
             condition: eq(variables.require_new_certificate, True)
 
