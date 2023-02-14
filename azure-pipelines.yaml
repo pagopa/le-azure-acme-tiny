@@ -78,7 +78,7 @@ stages:
                 printf "%s\n" '$(LE_REGR_JSON)' > regr.json
 
           - script: |
-              poetry run python acme_tiny.py --private-key private_key.json --regr regr.json --csr csr.der --out certificate_chain.pem
+              poetry run python acme_tiny.py --private-key private_key.json --regr regr.json --csr csr.der --out "~/certificate_chain.pem"
             name: ACMEv2
             condition: and(succeeded(), eq(variables.require_new_certificate, True))
             env:
@@ -95,7 +95,7 @@ stages:
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: |
-                openssl pkcs12 -inkey csr.key -in certificate_chain.pem -export -passout pass: -nodes -out certificate_chain.pfx
+                openssl pkcs12 -inkey csr.key -in "~/certificate_chain.pem" -export -passout pass: -nodes -out certificate_chain.pfx
                 az keyvault certificate import --vault-name '$(KEY_VAULT_NAME)' -n '$(KEY_VAULT_CERT_NAME)' --disabled false -f certificate_chain.pfx --password "" >/dev/null
 
           - task: Bash@3
@@ -108,5 +108,5 @@ stages:
                 rm -f regr.json
                 rm -f csr.der
                 rm -f csr.key
-                rm -f certificate_chain.pem
+                rm -f "~/certificate_chain.pem"
                 rm -f certificate_chain.pfx
