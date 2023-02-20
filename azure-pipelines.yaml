@@ -52,14 +52,9 @@ stages:
           require_new_certificate: $[ dependencies.RenewalDecision.outputs['GetCertificateFromKeyVaultAndDecide.require_new_certificate'] ]
 
         steps:
-          - task: UsePythonVersion@0
-            inputs:
-              versionSpec: "3.9"
-              addToPath: true
-
           - script: |
               if [[ "$(uname -m)" = "x86_64" && "$(uname -o)" = "GNU/Linux" ]]; then
-                pip3 install --require-hashes --requirement requirements-ubuntu-p39-x86_64.txt
+                pip3 install --require-hashes --requirement requirements-ubuntu-p38-x86_64.txt
               else
                 echo "A run on this system has not yet been implemented"
                 exit 1
