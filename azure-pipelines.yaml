@@ -58,15 +58,23 @@ stages:
               addToPath: true
 
           - script: |
-              pip3 install poetry==1.3.2
-              poetry install --no-root && source $(poetry env info --path)/bin/activate
+              if [[ "$(uname -m)" = "x86_64" && "$(uname -o)" = "GNU/Linux" ]]; then
+                pip3 install --require-hashes --requirement requirements-ubuntu-p39-x86_64.txt
+              else
+                echo "A run on this system has not yet been implemented"
+                exit 1
+              fi
+
             name: InstallPythonDependencies
             condition: eq(variables.require_new_certificate, True)
 
-          - script: |
-              poetry run python generate_csr.py --common-name $(csr_common_name) --out csr.der --rsa-key-size 2048
+          - task: PythonScript@0
             name: GenerateCertificateSigningRequest
             condition: and(succeeded(), eq(variables.require_new_certificate, True))
+            inputs:
+              scriptSource: filePath
+              scriptPath: generate_csr.py
+              arguments: --common-name $(csr_common_name) --out csr.der --rsa-key-size 2048
 
           - task: Bash@3
             name: KeysToFile
@@ -77,8 +85,7 @@ stages:
                 printf "%s\n" '$(LE_PRIVATE_KEY_JSON)' > private_key.json
                 printf "%s\n" '$(LE_REGR_JSON)' > regr.json
 
-          - script: |
-              poetry run python acme_tiny.py --private-key private_key.json --regr regr.json --csr csr.der --out certificate_chain.pem
+          - task: PythonScript@0
             name: ACMEv2
             condition: and(succeeded(), eq(variables.require_new_certificate, True))
             env:
@@ -86,6 +93,10 @@ stages:
               AZURE_SUBSCRIPTION_ID: $(LE_AZURE_SUBSCRIPTION_ID)
               AZURE_CLIENT_ID: $(LE_AZURE_CLIENT_ID)
               AZURE_CLIENT_SECRET: $(LE_AZURE_CLIENT_SECRET)
+            inputs:
+              scriptSource: filePath
+              scriptPath: acme_tiny.py
+              arguments: --private-key private_key.json --regr regr.json --csr csr.der --out certificate_chain.pem
 
           - task: AzureCLI@2
             name: SaveCertificateInKeyVault
