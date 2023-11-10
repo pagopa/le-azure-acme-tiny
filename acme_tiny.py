@@ -32,10 +32,8 @@ def azure_dns_operation(subscription, resource_group, zone, domain, value, opera
 
     # helper function - get a DNS API client
     def _get_dns_client(subscription):
-        identity = azure.identity.ClientSecretCredential(
-            client_id=os.environ["AZURE_CLIENT_ID"],
-            client_secret=os.environ["AZURE_CLIENT_SECRET"],
-            tenant_id=os.environ["AZURE_TENANT_ID"]
+        identity = azure.identity.DefaultAzureCredential(
+            managed_identity_client_id=os.environ["AZURE_CLIENT_ID"],
         )
         return azure.mgmt.dns.DnsManagementClient(identity, subscription)
 
