@@ -32,9 +32,7 @@ def azure_dns_operation(subscription, resource_group, zone, domain, value, opera
 
     # helper function - get a DNS API client
     def _get_dns_client(subscription):
-        identity = azure.identity.DefaultAzureCredential(
-            managed_identity_client_id=os.environ["AZURE_CLIENT_ID"],
-        )
+        identity = azure.identity.AzureCliCredential()
         return azure.mgmt.dns.DnsManagementClient(identity, subscription)
 
     # helper function - remove zone name from domain string
