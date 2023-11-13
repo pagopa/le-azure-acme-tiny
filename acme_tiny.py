@@ -332,7 +332,6 @@ def main(argv=None):
     os.environ["AZURE_SUBSCRIPTION_ID"]
     os.environ["AZURE_DNS_ZONE_RESOURCE_GROUP"]
     os.environ["AZURE_DNS_ZONE"]
-    os.environ["AZURE_CLIENT_ID"]
 
     # main function
     get_crt(args.private_key, args.regr, args.csr,
