@@ -85,7 +85,6 @@ stages:
             condition: and(succeeded(), eq(variables.require_new_certificate, True))
             env:
               AZURE_SUBSCRIPTION_ID: $(LE_AZURE_SUBSCRIPTION_ID)
-              AZURE_CLIENT_ID: $(LE_AZURE_CLIENT_ID)
             inputs:
               azureSubscription: "$(LE_SERVICE_CONNECTION)"
               scriptType: bash
