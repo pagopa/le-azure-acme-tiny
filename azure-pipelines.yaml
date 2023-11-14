@@ -85,6 +85,7 @@ stages:
             condition: and(succeeded(), eq(variables.require_new_certificate, True), eq(variables['LE_AZURE_IDENTITY_TYPE'], 'MANAGED_IDENTITY'))
             env:
               AZURE_SUBSCRIPTION_ID: $(LE_AZURE_SUBSCRIPTION_ID)
+              AZURE_IDENTITY_TYPE: $(LE_AZURE_IDENTITY_TYPE)
             inputs:
               azureSubscription: "$(LE_SERVICE_CONNECTION)"
               scriptType: bash
