@@ -32,11 +32,19 @@ def azure_dns_operation(subscription, resource_group, zone, domain, value, opera
 
     # helper function - get a DNS API client
     def _get_dns_client(subscription):
-        identity = azure.identity.ClientSecretCredential(
-            client_id=os.environ["AZURE_CLIENT_ID"],
-            client_secret=os.environ["AZURE_CLIENT_SECRET"],
-            tenant_id=os.environ["AZURE_TENANT_ID"]
-        )
+        id_type = os.getenv("AZURE_IDENTITY_TYPE", "CLIENT_SECRET")
+
+        if id_type == "MANAGED_IDENTITY":
+            identity = azure.identity.AzureCliCredential()
+        elif id_type == "CLIENT_SECRET":
+            identity = azure.identity.ClientSecretCredential(
+                client_id=os.environ["AZURE_CLIENT_ID"],
+                client_secret=os.environ["AZURE_CLIENT_SECRET"],
+                tenant_id=os.environ["AZURE_TENANT_ID"]
+            )
+        else:
+            raise ValueError(f"Unknown identity type: {id_type}.")
+
         return azure.mgmt.dns.DnsManagementClient(identity, subscription)
 
     # helper function - remove zone name from domain string
@@ -336,9 +344,6 @@ def main(argv=None):
     os.environ["AZURE_SUBSCRIPTION_ID"]
     os.environ["AZURE_DNS_ZONE_RESOURCE_GROUP"]
     os.environ["AZURE_DNS_ZONE"]
-    os.environ["AZURE_CLIENT_ID"]
-    os.environ["AZURE_CLIENT_SECRET"]
-    os.environ["AZURE_TENANT_ID"]
 
     # main function
     get_crt(args.private_key, args.regr, args.csr,

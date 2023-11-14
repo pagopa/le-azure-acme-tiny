@@ -80,9 +80,21 @@ stages:
                 printf "%s\n" '$(LE_PRIVATE_KEY_JSON)' > private_key.json
                 printf "%s\n" '$(LE_REGR_JSON)' > regr.json
 
-          - task: PythonScript@0
+          - task: AzureCLI@2
             name: ACMEv2
-            condition: and(succeeded(), eq(variables.require_new_certificate, True))
+            condition: and(succeeded(), eq(variables.require_new_certificate, True), eq(variables['LE_AZURE_IDENTITY_TYPE'], 'MANAGED_IDENTITY'))
+            env:
+              AZURE_SUBSCRIPTION_ID: $(LE_AZURE_SUBSCRIPTION_ID)
+              AZURE_IDENTITY_TYPE: $(LE_AZURE_IDENTITY_TYPE)
+            inputs:
+              azureSubscription: "$(LE_SERVICE_CONNECTION)"
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: "python3 acme_tiny.py --private-key private_key.json --regr regr.json --csr csr.der --out certificate_chain.pem"
+
+          - task: PythonScript@0
+            name: ACMEv2Legacy
+            condition: and(succeeded(), eq(variables.require_new_certificate, True), ne(variables['LE_AZURE_IDENTITY_TYPE'], 'MANAGED_IDENTITY'))
             env:
               AZURE_TENANT_ID: $(LE_AZURE_TENANT_ID)
               AZURE_SUBSCRIPTION_ID: $(LE_AZURE_SUBSCRIPTION_ID)
