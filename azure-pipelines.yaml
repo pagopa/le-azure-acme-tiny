@@ -12,7 +12,7 @@ parameters:
   - name: "alt_chain_cert"
     displayName: "Specify a CN for the issuer"
     type: string
-    default: "DST Root CA X3"
+    default: "CN=DST Root CA X3"
 
 stages:
   - stage: SignCertificate
@@ -99,20 +99,17 @@ stages:
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: |
-                altcn="${{ parameters.alt_chain_cert }}"
-
-                #default fa diventare certificate_chain.pem il certificate_chain.pem.0
-                cp certificate_chain.pem.0 certificate_chain.pem
-
+                #by default the certificate_chain.pem.0 must be the selected certificate in case of no CN matches
+                mv certificate_chain.pem.0 certificate_chain.pem
                 for file in certificate_chain.pem.*; do
-                    issuers=$(while openssl x509 -inform pem -noout -issuer 2>/dev/null; do :; done < $file)
-                    while IFS= read -r line; do
-                        cname=$(echo "$line" | sed -n 's/.*CN=\([^\/]*\).*/\1/p')
-                        echo "$cname"
-                        if [ "$cname" = "$altcn" ]; then
-                            cp "$file" certificate_chain.pem
-                        fi
-                    done <<< "$issuers"
+                  issuers=$(while openssl x509 -inform pem -noout -issuer 2>/dev/null; do :; done < $file)
+                  echo $issuers | grep "${{ parameters.alt_chain_cert }}" 1>/dev/null
+                  # check if the grep result is positive or not
+                  if [ $? = 0 ]; then
+                    #in case the certificate has the CN searched, the script renames the certificate
+                    mv "$file" certificate_chain.pem
+                    break
+                  fi
                 done
 
 
