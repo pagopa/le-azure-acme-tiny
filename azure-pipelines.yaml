@@ -9,6 +9,10 @@ parameters:
     values:
       - False
       - True
+  - name: "alt_chain_cert"
+    displayName: "Specify a CN for the issuer"
+    type: string
+    default: "DST Root CA X3"
 
 stages:
   - stage: SignCertificate
@@ -50,15 +54,9 @@ stages:
         condition: succeededOrFailed()
         variables:
           require_new_certificate: $[ dependencies.RenewalDecision.outputs['GetCertificateFromKeyVaultAndDecide.require_new_certificate'] ]
-
         steps:
           - script: |
-              if [[ "$(uname -m)" = "x86_64" && "$(uname -o)" = "GNU/Linux" ]]; then
-                pip3 install --require-hashes --requirement requirements-ubuntu-p38-x86_64.txt
-              else
-                echo "A run on this system has not yet been implemented"
-                exit 1
-              fi
+              pip3 install --require-hashes --requirement requirements-output.txt
 
             name: InstallPythonDependencies
             condition: eq(variables.require_new_certificate, True)
@@ -94,6 +92,31 @@ stages:
               arguments: --private-key private_key.json --regr regr.json --csr csr.der --out certificate_chain.pem
 
           - task: AzureCLI@2
+            name: SelectCertificate
+            condition: and(succeeded(), eq(variables.require_new_certificate, True))
+            inputs:
+              azureSubscription: $(KEY_VAULT_SERVICE_CONNECTION)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                altcn="${{ parameters.alt_chain_cert }}"
+
+                #default fa diventare certificate_chain.pem il certificate_chain.pem.0
+                cp certificate_chain.pem.0 certificate_chain.pem
+
+                for file in certificate_chain.pem.*; do
+                    issuers=$(while openssl x509 -inform pem -noout -issuer 2>/dev/null; do :; done < $file)
+                    while IFS= read -r line; do
+                        cname=$(echo "$line" | sed -n 's/.*CN=\([^\/]*\).*/\1/p')
+                        echo "$cname"
+                        if [ "$cname" = "$altcn" ]; then
+                            cp "$file" certificate_chain.pem
+                        fi
+                    done <<< "$issuers"
+                done
+
+
+          - task: AzureCLI@2
             name: SaveCertificateInKeyVault
             condition: and(succeeded(), eq(variables.require_new_certificate, True))
             inputs:
@@ -114,5 +137,6 @@ stages:
                 rm -f regr.json
                 rm -f csr.der
                 rm -f csr.key
+                rm -f certificate_chain.pem.*
                 rm -f certificate_chain.pem
                 rm -f certificate_chain.pfx
