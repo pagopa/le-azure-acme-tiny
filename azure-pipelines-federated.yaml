@@ -59,7 +59,6 @@ stages:
           - script: |
               pip3 install --require-hashes --requirement requirements-output.txt
 
-
             name: InstallPythonDependencies
             condition: eq(variables.require_new_certificate, True)
 
@@ -100,17 +99,22 @@ stages:
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: |
-                #by default the certificate_chain.pem.0 must be the selected certificate in case of no CN matches
+                # by default the certificate_chain.pem.0 must be the selected certificate in case of no CN matches
                 mv certificate_chain.pem.0 certificate_chain.pem
                 for file in certificate_chain.pem.*; do
-                  issuers=$(while openssl x509 -inform pem -noout -issuer 2>/dev/null; do :; done < $file)
-                  echo $issuers | grep "${{ parameters.alt_chain_cert }}" 1>/dev/null
+                  # assuming ordered PEMs in file
+                  root_issuer=$(while openssl x509 -inform pem -noout -issuer 2>/dev/null; do :; done < "$file" | tail -n 1)
                   # check if the grep result is positive or not
-                  if [ $? = 0 ]; then
-                    echo "file"
-                    #in case the certificate has the CN searched, the script renames the certificate
+                  if echo "$root_issuer" | grep "${{ parameters.alt_chain_cert }}" 1>/dev/null
+                  then
+                    echo "Found ${{ parameters.alt_chain_cert }} in $file!"
+                    # print some debug info
+                    while openssl x509 -inform pem -noout -issuer 2>/dev/null; do :; done < "$file"
+                    # select this file
                     mv "$file" certificate_chain.pem
                     break
+                  else
+                    echo "Skipping $file"
                   fi
                 done
 
