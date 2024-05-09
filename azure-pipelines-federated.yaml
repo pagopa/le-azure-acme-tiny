@@ -105,7 +105,7 @@ stages:
                   # assuming ordered PEMs in file
                   root_issuer=$(while openssl x509 -inform pem -noout -issuer 2>/dev/null; do :; done < "$file" | tail -n 1)
                   # check if the grep result is positive or not
-                  if echo "$root_issuer" | grep "${{ parameters.alt_chain_cert }}" 1>/dev/null
+                  if echo "$root_issuer" | grep ${{ parameters.alt_chain_cert }} 1>/dev/null
                   then
                     echo "Found ${{ parameters.alt_chain_cert }} in $file!"
                     # print some debug info
