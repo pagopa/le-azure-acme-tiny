@@ -107,6 +107,7 @@ stages:
                   # check if the grep result is positive or not
                   if [ $? = 0 ]; then
                     #in case the certificate has the CN searched, the script renames the certificate
+                    echo "file"
                     mv "$file" certificate_chain.pem
                     break
                   fi

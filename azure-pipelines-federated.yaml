@@ -107,6 +107,7 @@ stages:
                   echo $issuers | grep "${{ parameters.alt_chain_cert }}" 1>/dev/null
                   # check if the grep result is positive or not
                   if [ $? = 0 ]; then
+                    echo "file"
                     #in case the certificate has the CN searched, the script renames the certificate
                     mv "$file" certificate_chain.pem
                     break
