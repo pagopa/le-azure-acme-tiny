@@ -9,14 +9,6 @@ parameters:
     values:
       - False
       - True
-  - name: "alt_chain_cert"
-    displayName: "Specify a CN for the issuer"
-    type: string
-    # example: "CN=DST Root CA X3"
-    # Remember to specify "CN=" too!
-    # Spaces are important, as we are grepping later for this string.
-    # Do not insert any space in front or after '='!
-    default: ""
 
 stages:
   - stage: SignCertificate
@@ -97,6 +89,14 @@ stages:
           - task: AzureCLI@2
             name: SelectCertificate
             condition: and(succeeded(), eq(variables.require_new_certificate, True))
+            variables:
+              - name: alternate_chain_cn
+                # Specify a CN for the root issuer
+                # example: "CN=DST Root CA X3"
+                # Remember to specify "CN=" too!
+                # Spaces are important, as we are grepping later for this string.
+                # Do not insert any space in front or after '='!
+                value: ""
             inputs:
               azureSubscription: $(KEY_VAULT_SERVICE_CONNECTION)
               scriptType: bash
@@ -105,18 +105,18 @@ stages:
                 # by default the certificate_chain.pem.0 must be the selected certificate in case of no CN matches
                 mv certificate_chain.pem.0 certificate_chain.pem
                 # if we are not searching for a specific chain, exit early
-                if [[ -z "${{ parameters.alt_chain_cert }}"]]; then
+                if [[ -z "${{ variables.alternate_chain_cn }}"]]; then
                   exit 0
                 fi
-                echo "Looking for ${{ parameters.alt_chain_cert }} root issuer..."
+                echo "Looking for ${{ variables.alternate_chain_cn }} root issuer..."
                 for file in certificate_chain.pem.*; do
                   # assuming ordered PEMs in file
                   root_issuer=$(while openssl x509 -inform pem -noout -issuer 2>/dev/null; do :; done < "$file" | tail -n 1)
                   echo "The root issuer for $file is $root_issuer"
                   # check if the grep result is positive or not
-                  if echo "$root_issuer" | sed 's/ *= */=/g' | grep '${{ parameters.alt_chain_cert }}' 1>/dev/null
+                  if echo "$root_issuer" | sed 's/ *= */=/g' | grep '${{ variables.alternate_chain_cn }}' 1>/dev/null
                   then
-                    echo "Found ${{ parameters.alt_chain_cert }} in $file!"
+                    echo "Found ${{ variables.alternate_chain_cn }} in $file!"
                     # print some debug info
                     while openssl x509 -inform pem -noout -issuer 2>/dev/null; do :; done < "$file"
                     # select this file
