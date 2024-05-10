@@ -12,7 +12,11 @@ parameters:
   - name: "alt_chain_cert"
     displayName: "Specify a CN for the issuer"
     type: string
-    default: "CN=DST Root CA X3"
+    # example: "CN=DST Root CA X3"
+    # Remember to specify "CN=" too!
+    # Spaces are important, as we are grepping later for this string.
+    # Do not insert any space in front or after '='!
+    default: ""
 
 stages:
   - stage: SignCertificate
@@ -54,11 +58,9 @@ stages:
         condition: succeededOrFailed()
         variables:
           require_new_certificate: $[ dependencies.RenewalDecision.outputs['GetCertificateFromKeyVaultAndDecide.require_new_certificate'] ]
-
         steps:
           - script: |
               pip3 install --require-hashes --requirement requirements-output.txt
-
             name: InstallPythonDependencies
             condition: eq(variables.require_new_certificate, True)
 
@@ -101,6 +103,10 @@ stages:
               inlineScript: |
                 # by default the certificate_chain.pem.0 must be the selected certificate in case of no CN matches
                 mv certificate_chain.pem.0 certificate_chain.pem
+                # if we are not searching for a specific chain, exit early
+                if [[ -z "${{ parameters.alt_chain_cert }}"]]; then
+                  exit 0
+                fi
                 echo "Looking for ${{ parameters.alt_chain_cert }} root issuer..."
                 for file in certificate_chain.pem.*; do
                   # assuming ordered PEMs in file

@@ -12,7 +12,11 @@ parameters:
   - name: "alt_chain_cert"
     displayName: "Specify a CN for the issuer"
     type: string
-    default: "CN=DST Root CA X3"
+    # example: "CN=DST Root CA X3"
+    # Remember to specify "CN=" too!
+    # Spaces are important, as we are grepping later for this string.
+    # Do not insert any space in front or after '='!
+    default: ""
 
 stages:
   - stage: SignCertificate
@@ -57,7 +61,6 @@ stages:
         steps:
           - script: |
               pip3 install --require-hashes --requirement requirements-output.txt
-
             name: InstallPythonDependencies
             condition: eq(variables.require_new_certificate, True)
 
@@ -78,7 +81,7 @@ stages:
                 printf "%s\n" '$(LE_PRIVATE_KEY_JSON)' > private_key.json
                 printf "%s\n" '$(LE_REGR_JSON)' > regr.json
 
-          - task: PythonScript@0
+          - task: AzureCLI@2
             name: ACMEv2
             condition: and(succeeded(), eq(variables.require_new_certificate, True))
             env:
@@ -87,9 +90,9 @@ stages:
               AZURE_CLIENT_ID: $(LE_AZURE_CLIENT_ID)
               AZURE_CLIENT_SECRET: $(LE_AZURE_CLIENT_SECRET)
             inputs:
-              scriptSource: filePath
-              scriptPath: acme_tiny.py
-              arguments: --private-key private_key.json --regr regr.json --csr csr.der --out certificate_chain.pem
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: "python3 acme_tiny.py --private-key private_key.json --regr regr.json --csr csr.der --out certificate_chain.pem"
 
           - task: AzureCLI@2
             name: SelectCertificate
@@ -101,6 +104,10 @@ stages:
               inlineScript: |
                 # by default the certificate_chain.pem.0 must be the selected certificate in case of no CN matches
                 mv certificate_chain.pem.0 certificate_chain.pem
+                # if we are not searching for a specific chain, exit early
+                if [[ -z "${{ parameters.alt_chain_cert }}"]]; then
+                  exit 0
+                fi
                 echo "Looking for ${{ parameters.alt_chain_cert }} root issuer..."
                 for file in certificate_chain.pem.*; do
                   # assuming ordered PEMs in file
