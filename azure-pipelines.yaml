@@ -49,7 +49,15 @@ stages:
         dependsOn: RenewalDecision
         condition: succeededOrFailed()
         variables:
-          require_new_certificate: $[ dependencies.RenewalDecision.outputs['GetCertificateFromKeyVaultAndDecide.require_new_certificate'] ]
+          - name: require_new_certificate
+            value: $[ dependencies.RenewalDecision.outputs['GetCertificateFromKeyVaultAndDecide.require_new_certificate'] ]
+          - name: alternate_chain_cn
+            # Specify a CN for the root issuer
+            # example: "CN=DST Root CA X3"
+            # Remember to specify "CN=" too!
+            # Spaces are important, as we are grepping later for this string.
+            # Do not insert any space in front or after '='!
+            value: ""
         steps:
           - script: |
               pip3 install --require-hashes --requirement requirements-output.txt
@@ -89,14 +97,6 @@ stages:
           - task: AzureCLI@2
             name: SelectCertificate
             condition: and(succeeded(), eq(variables.require_new_certificate, True))
-            variables:
-              - name: alternate_chain_cn
-                # Specify a CN for the root issuer
-                # example: "CN=DST Root CA X3"
-                # Remember to specify "CN=" too!
-                # Spaces are important, as we are grepping later for this string.
-                # Do not insert any space in front or after '='!
-                value: ""
             inputs:
               azureSubscription: $(KEY_VAULT_SERVICE_CONNECTION)
               scriptType: bash
