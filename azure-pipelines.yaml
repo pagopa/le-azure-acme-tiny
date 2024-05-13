@@ -105,7 +105,7 @@ stages:
                 # by default the certificate_chain.pem.0 must be the selected certificate in case of no CN matches
                 mv certificate_chain.pem.0 certificate_chain.pem
                 # if we are not searching for a specific chain, exit early
-                if [[ -z "${{ variables.alternate_chain_cn }}"]]; then
+                if [[ -z "${{ variables.alternate_chain_cn }}" ]]; then
                   exit 0
                 fi
                 echo "Looking for ${{ variables.alternate_chain_cn }} root issuer..."
