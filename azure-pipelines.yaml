@@ -49,17 +49,11 @@ stages:
         dependsOn: RenewalDecision
         condition: succeededOrFailed()
         variables:
-          require_new_certificate: $[ dependencies.RenewalDecision.outputs['GetCertificateFromKeyVaultAndDecide.require_new_certificate'] ]
-
+          - name: require_new_certificate
+            value: $[ dependencies.RenewalDecision.outputs['GetCertificateFromKeyVaultAndDecide.require_new_certificate'] ]
         steps:
           - script: |
-              if [[ "$(uname -m)" = "x86_64" && "$(uname -o)" = "GNU/Linux" ]]; then
-                pip3 install --require-hashes --requirement requirements-ubuntu-p38-x86_64.txt
-              else
-                echo "A run on this system has not yet been implemented"
-                exit 1
-              fi
-
+              pip3 install --require-hashes --requirement requirements-output.txt
             name: InstallPythonDependencies
             condition: eq(variables.require_new_certificate, True)
 
@@ -80,7 +74,7 @@ stages:
                 printf "%s\n" '$(LE_PRIVATE_KEY_JSON)' > private_key.json
                 printf "%s\n" '$(LE_REGR_JSON)' > regr.json
 
-          - task: PythonScript@0
+          - task: AzureCLI@2
             name: ACMEv2
             condition: and(succeeded(), eq(variables.require_new_certificate, True))
             env:
@@ -89,9 +83,42 @@ stages:
               AZURE_CLIENT_ID: $(LE_AZURE_CLIENT_ID)
               AZURE_CLIENT_SECRET: $(LE_AZURE_CLIENT_SECRET)
             inputs:
-              scriptSource: filePath
-              scriptPath: acme_tiny.py
-              arguments: --private-key private_key.json --regr regr.json --csr csr.der --out certificate_chain.pem
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: "python3 acme_tiny.py --private-key private_key.json --regr regr.json --csr csr.der --out certificate_chain.pem"
+
+          - task: AzureCLI@2
+            name: SelectCertificate
+            condition: and(succeeded(), eq(variables.require_new_certificate, True))
+            inputs:
+              azureSubscription: $(KEY_VAULT_SERVICE_CONNECTION)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                # by default the certificate_chain.pem.0 must be the selected certificate in case of no CN matches
+                mv certificate_chain.pem.0 certificate_chain.pem
+                # if we are not searching for a specific chain, exit early
+                if [[ -z "$(alternate_chain_cn)" ]]; then
+                  exit 0
+                fi
+                echo "Looking for $(alternate_chain_cn) root issuer..."
+                for file in certificate_chain.pem.*; do
+                  # assuming ordered PEMs in file
+                  root_issuer=$(while openssl x509 -inform pem -noout -issuer 2>/dev/null; do :; done < "$file" | tail -n 1)
+                  echo "The root issuer for $file is $root_issuer"
+                  # check if the grep result is positive or not
+                  if echo "$root_issuer" | sed 's/ *= */=/g' | grep '$(alternate_chain_cn)' 1>/dev/null
+                  then
+                    echo "Found $(alternate_chain_cn) in $file!"
+                    # print some debug info
+                    while openssl x509 -inform pem -noout -issuer 2>/dev/null; do :; done < "$file"
+                    # select this file
+                    mv "$file" certificate_chain.pem
+                    break
+                  else
+                    echo "Skipping $file"
+                  fi
+                done
 
           - task: AzureCLI@2
             name: SaveCertificateInKeyVault
@@ -114,5 +141,6 @@ stages:
                 rm -f regr.json
                 rm -f csr.der
                 rm -f csr.key
+                rm -f certificate_chain.pem.*
                 rm -f certificate_chain.pem
                 rm -f certificate_chain.pfx
