@@ -25,13 +25,13 @@ stages:
                 if [ ${{ parameters.force_renew_cert }} == "True" ]
                 then
                   echo "##vso[task.setvariable variable=require_new_certificate;isOutput=true]True"
-                  echo "Parameter force_renew_cert is set to true"
+                  echo "🔄 Parameter force_renew_cert is set to true"
                   exit 0
                 fi
                 if ! az keyvault certificate download --vault-name '$(KEY_VAULT_NAME)' -n '$(KEY_VAULT_CERT_NAME)' -f certificate.pem >/dev/null
                 then
                   echo "##vso[task.setvariable variable=require_new_certificate;isOutput=true]True"
-                  echo "The certificate was not found in the selected keyvault"
+                  echo "❌ The certificate was not found in the selected keyvault"
                   exit 0
                 else
                   if ! openssl x509 -inform pem -checkend '$(CERT_NAME_EXPIRE_SECONDS)' -noout -in certificate.pem
@@ -100,22 +100,22 @@ stages:
                 if [[ -z "$(alternate_chain_cn)" ]]; then
                   exit 0
                 fi
-                echo "Looking for $(alternate_chain_cn) root issuer..."
+                echo "🔍 Looking for $(alternate_chain_cn) root issuer..."
                 for file in certificate_chain.pem.*; do
                   # assuming ordered PEMs in file
                   root_issuer=$(while openssl x509 -inform pem -noout -issuer 2>/dev/null; do :; done < "$file" | tail -n 1)
-                  echo "The root issuer for $file is $root_issuer"
+                  echo "🔍 The root issuer for $file is $root_issuer"
                   # check if the grep result is positive or not
                   if echo "$root_issuer" | sed 's/ *= */=/g' | grep '$(alternate_chain_cn)' 1>/dev/null
                   then
-                    echo "Found $(alternate_chain_cn) in $file!"
+                    echo "✅ Found $(alternate_chain_cn) in $file!"
                     # print some debug info
                     while openssl x509 -inform pem -noout -issuer 2>/dev/null; do :; done < "$file"
                     # select this file
                     mv "$file" certificate_chain.pem
                     break
                   else
-                    echo "Skipping $file"
+                    echo "⏭️ Skipping $file"
                   fi
                 done
 
@@ -127,7 +127,9 @@ stages:
               scriptType: bash
               scriptLocation: inlineScript
               inlineScript: |
+                echo "🚀 Creating pfx"
                 openssl pkcs12 -inkey csr.key -in certificate_chain.pem -export -passout pass: -nodes -out certificate_chain.pfx
+                echo "💾 Saving pfx in $(KEY_VAULT_NAME) with $(KEY_VAULT_CERT_NAME)"
                 az keyvault certificate import --vault-name '$(KEY_VAULT_NAME)' -n '$(KEY_VAULT_CERT_NAME)' --disabled false -f certificate_chain.pfx --password "" >/dev/null
 
           - task: Bash@3
