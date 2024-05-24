@@ -88,7 +88,7 @@ stages:
 
           - task: AzureCLI@2
             name: SelectCertificate
-            condition: and(succeeded(), eq(variables.require_new_certificate, True))
+            condition: and(succeeded(), eq(variables.require_new_certificate, True), ne(variables['alternate_chain_cn'], ''))
             inputs:
               azureSubscription: $(KEY_VAULT_SERVICE_CONNECTION)
               scriptType: bash
@@ -118,6 +118,17 @@ stages:
                     echo "⏭️ Skipping $file"
                   fi
                 done
+                
+          - task: AzureCLI@2
+              name: SelectCertificateDefault
+              condition: and(succeeded(), eq(variables.require_new_certificate, True), eq(variables['alternate_chain_cn'], ''))
+              inputs:
+                azureSubscription: $(KEY_VAULT_SERVICE_CONNECTION)
+                scriptType: bash
+                scriptLocation: inlineScript
+                inlineScript: |
+                  # by default the certificate_chain.pem.0 must be the selected certificate in case of no CN matches
+                  mv certificate_chain.pem.0 certificate_chain.pem
 
           - task: AzureCLI@2
             name: SaveCertificateInKeyVault
