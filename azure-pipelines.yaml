@@ -130,9 +130,6 @@ stages:
               inlineScript: |
                 # by default the certificate_chain.pem.0 must be the selected certificate in case of no CN matches
                 mv certificate_chain.pem.0 certificate_chain.pem
-                  
-
-
 
           - task: AzureCLI@2
             name: SaveCertificateInKeyVault
