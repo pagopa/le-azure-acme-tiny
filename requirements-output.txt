@@ -178,9 +178,9 @@ idna==3.7 ; python_full_version >= "3.8.0" and python_full_version < "4.0.0" \
 isodate==0.6.0 ; python_full_version >= "3.8.0" and python_full_version < "4.0.0" \
     --hash=sha256:2e364a3d5759479cdb2d37cce6b9376ea504db2ff90252a2e5b7cc89cc9ff2d8 \
     --hash=sha256:aa4d33c06640f5352aca96e4b81afd8ab3b47337cc12089822d6f322ac772c81
-jwcrypto==0.8 ; python_full_version >= "3.8.0" and python_full_version < "4.0.0" \
-    --hash=sha256:16e17faa4dce36551ade3a3ccb06236a61e5924ea1db163c9be9827acf935a82 \
-    --hash=sha256:b7fee2635bbefdf145399392f5be26ad54161c8271c66b5fe107b4b452f06c24
+jwcrypto==1.5.6; python_full_version >= "3.8.0" and python_full_version < "4.0.0" \
+    --hash=sha256:150d2b0ebbdb8f40b77f543fb44ffd2baeff48788be71f67f03566692fd55789 \
+    --hash=sha256:771a87762a0c081ae6166958a954f80848820b2ab066937dc8b8379d65b1b039
 msal-extensions==0.3.0 ; python_full_version >= "3.8.0" and python_full_version < "4.0.0" \
     --hash=sha256:5523dfa15da88297e90d2e73486c8ef875a17f61ea7b7e2953a300432c2e7861 \
     --hash=sha256:a530c2d620061822f2ced8e29da301bc928b146970df635c852907423e8ddddc
