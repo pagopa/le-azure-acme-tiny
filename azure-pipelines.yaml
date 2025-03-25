@@ -1,5 +1,5 @@
 pool:
-  vmImage: "ubuntu-latest"
+  vmImage: "ubuntu-22.04"
 
 parameters:
   - name: "force_renew_cert"
