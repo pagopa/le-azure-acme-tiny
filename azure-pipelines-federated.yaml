@@ -156,11 +156,10 @@ stages:
                 rm -f certificate_chain.pem.*
                 rm -f certificate_chain.pem
                 rm -f certificate_chain.pfx
-          - task: Bash@3
-            name: PropagateOutput
-            condition: always()
-            inputs:
-              targetType: "inline"
-              script: |
-                echo "##vso[task.setvariable variable=parameters.force_renew_cert;isOutput=true]force_renew_cert"
+
+          - script: echo "VERSION=1.2.3" > version.txt
+            displayName: "Genera file con variabile"
+
+          - publish: version.txt
+            artifact: shared-output
 
