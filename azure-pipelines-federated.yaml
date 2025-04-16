@@ -159,6 +159,9 @@ stages:
           - task: Bash@3
             name: PropagateOutput
             condition: always()
-            script: |
-              echo "##vso[task.setvariable variable=parameters.force_renew_cert;isOutput=true]force_renew_cert"
+            inputs:
+              scriptType: bash
+              scriptLocation: inlineScript
+              script: |
+                echo "##vso[task.setvariable variable=parameters.force_renew_cert;isOutput=true]force_renew_cert"
 
