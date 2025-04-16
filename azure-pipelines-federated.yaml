@@ -160,5 +160,5 @@ stages:
             name: PropagateOutput
             condition: always()
             script: |
-             echo "##vso[task.setvariable variable=parameters.force_renew_cert;isOutput=true]force_renew_cert"
+              echo "##vso[task.setvariable variable=parameters.force_renew_cert;isOutput=true]force_renew_cert"
 
