@@ -156,3 +156,9 @@ stages:
                 rm -f certificate_chain.pem.*
                 rm -f certificate_chain.pem
                 rm -f certificate_chain.pfx
+          - task: Bash@3
+            name: PropagateOutput
+            condition: always()
+            script: |
+             echo "##vso[task.setvariable variable=parameters.force_renew_cert;isOutput=true]force_renew_cert"
+
