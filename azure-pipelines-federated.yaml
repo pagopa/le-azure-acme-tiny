@@ -157,7 +157,7 @@ stages:
                 rm -f certificate_chain.pem
                 rm -f certificate_chain.pfx
 
-          - script: echo "VERSION=1.2.3" > version.txt
+          - script: echo "${{ variables.require_new_certificate }}" > version.txt
             displayName: "Genera file con variabile"
 
           - publish: version.txt
