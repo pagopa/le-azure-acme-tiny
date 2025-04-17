@@ -157,9 +157,9 @@ stages:
                 rm -f certificate_chain.pem
                 rm -f certificate_chain.pfx
 
-          - script: echo '${{ parameters.force_renew_cert }}' > version.txt
-            displayName: "Genera file con variabile"
+          - script: echo '${{ parameters.force_renew_cert }}' > force_renew_cert_variable.txt
+            displayName: "Generate file with flag force_renew_cert"
 
-          - publish: version.txt
-            artifact: shared-output
+          - publish: force_renew_cert_variable.txt
+            artifact: force_renew_cert_variable
 
