@@ -157,10 +157,7 @@ stages:
                 rm -f certificate_chain.pem
                 rm -f certificate_chain.pfx
 
-          - script: echo "##vso[task.setvariable variable=require_new_certificate;isOutput=true]True"
-            displayName: "Setto variabile di runtime"
-
-          - script: echo "${{ variables.require_new_certificate_runtime }}" > version.txt
+          - script: echo '${{ parameters.force_renew_cert }}' > version.txt
             displayName: "Genera file con variabile"
 
           - publish: version.txt
