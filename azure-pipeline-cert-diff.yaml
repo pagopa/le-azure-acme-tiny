@@ -60,7 +60,7 @@ jobs:
       inlineScript: |
         
         # Extract Force variable
-        FORCE_RENEW_CERT=$(az keyvault certificate show --vault-name '$(KEY_VAULT_NAME) --name $(KEY_VAULT_CERT_NAME_STABLE) | jq -jr '.tags.Force')
+        FORCE_RENEW_CERT=$(az keyvault certificate show --vault-name '$(KEY_VAULT_NAME)' --name '$(KEY_VAULT_CERT_NAME_STABLE)' | jq -jr '.tags.Force')
         echo -e "##vso[task.setvariable variable=FORCE_RENEW_CERT]$(echo "$FORCE_RENEW_CERT")"
         
         az keyvault secret download --file stable.pfx --encoding base64 --vault-name '$(KEY_VAULT_NAME)' --name '$(KEY_VAULT_CERT_NAME_STABLE)'  >/dev/null
