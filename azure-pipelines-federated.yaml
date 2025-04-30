@@ -141,7 +141,7 @@ stages:
                 echo "🚀 Creating pfx"
                 openssl pkcs12 -inkey csr.key -in certificate_chain.pem -export -passout pass: -nodes -out certificate_chain.pfx
                 echo "💾 Saving pfx in $(KEY_VAULT_NAME) with $(KEY_VAULT_CERT_NAME)"
-                az keyvault certificate import --vault-name '$(KEY_VAULT_NAME)' -n '$(KEY_VAULT_CERT_NAME)' --disabled false -f certificate_chain.pfx --password "" >/dev/null
+                az keyvault certificate import --vault-name '$(KEY_VAULT_NAME)' -n '$(KEY_VAULT_CERT_NAME)' --disabled false -f certificate_chain.pfx --password --tags FORCE=$(variables.require_new_certificate) >/dev/null
 
           - task: Bash@3
             name: CleanupEverything
@@ -156,10 +156,3 @@ stages:
                 rm -f certificate_chain.pem.*
                 rm -f certificate_chain.pem
                 rm -f certificate_chain.pfx
-
-          - script: echo '${{ parameters.force_renew_cert }}' > force_renew_cert_variable.txt
-            displayName: "Generate file with flag force_renew_cert"
-
-          - publish: force_renew_cert_variable.txt
-            artifact: force_renew_cert_variable
-
