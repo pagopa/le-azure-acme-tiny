@@ -1,0 +1,154 @@
+trigger: none
+
+resources:
+  repositories:
+  - repository: azure
+    type: github
+    name: pagopa/azure-pipeline-templates
+    endpoint: 'azure-devops-github-ro'
+
+  
+pool:
+  vmImage: ubuntu-latest
+
+jobs:
+- job: GetCert
+  steps:
+
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.10'
+
+  - script: |
+      echo "Installing required packages..."
+      python -m pip install requests
+
+  - task: PythonScript@0
+    inputs:
+      scriptSource: 'inline'
+      script: |
+        import json
+        import requests
+
+        import requests
+        import shutil
+        
+        def download_file(url):
+            local_filename = url.split('/')[-1]
+            with requests.get(url, stream=True) as r:
+                with open(local_filename, 'wb') as f:
+                    shutil.copyfileobj(r.raw, f)
+            return local_filename        
+        
+        response = requests.get("https://api.github.com/repos/pagopa/certdiff/releases/latest")
+        if response.status_code == 200:
+          wheel = response.json()["assets"][0]['browser_download_url']
+          download_file(wheel)
+        else:
+          raise("Unable to download wheel file from repository...")
+
+  - script: |
+      pip install $(ls -1 certdiff*)
+      certdiff --help
+
+  - task: AzureCLI@2
+    name: GetCertificatesFromKeyVault
+    inputs:
+      azureSubscription: "$(KEY_VAULT_SERVICE_CONNECTION)"
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        
+        # Extract Force variable
+        FORCE_RENEW_CERT=$(az keyvault certificate show --vault-name '$(KEY_VAULT_NAME) --name $(KEY_VAULT_CERT_NAME_STABLE) | jq -jr '.tags.Force')
+        echo -e "##vso[task.setvariable variable=FORCE_RENEW_CERT]$(echo "$FORCE_RENEW_CERT")"
+        
+        az keyvault secret download --file stable.pfx --encoding base64 --vault-name '$(KEY_VAULT_NAME)' --name '$(KEY_VAULT_CERT_NAME_STABLE)'  >/dev/null
+        az keyvault secret download --file current.pfx --encoding base64 --vault-name '$(KEY_VAULT_NAME)' --name '$(KEY_VAULT_CERT_NAME)' >/dev/null
+        
+        for name in stable current; do
+          if [[ ! -f "$name.pfx" ]]; then
+              echo "❗File $name.pfx not found. Skipping..."
+              exit 1
+          fi
+        
+          # Extract certificates from .pfx (without private keys)
+          echo "🔐 Extracting certificates from $name.pfx"
+          openssl pkcs12 -in "$name.pfx" -nodes -nokeys -passin pass: | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > "$name.pem"
+          
+          # Split multiple certificates into separate file
+          echo "📂 Splitting certificates into individual files"                
+          CERT_COUNT=$(awk '/-----BEGIN CERTIFICATE-----/{x="'"$name"'_cert" ++i ".pem"} x{print > x} END{print i}' "$name.pem")
+          
+          echo "🔁 Converting DER → PEM"
+          openssl x509 -in ${name}_cert${CERT_COUNT}.pem -noout -text | grep 'CA Issuers' | cut -d ':' -f2,3 | xargs curl -s -o ${name}_root.der
+    
+          openssl x509 -inform DER -in ${name}_root.der -out ${name}_root.pem
+          
+          echo "🔗 Generating certificate chain PEM: ${name}_chain.pem"
+          cat $(seq 1 $CERT_COUNT | xargs -I{} echo "${name}_cert{}.pem") ${name}_root.pem > ${name}_chain.pem
+        done
+
+  - task: AzureCLI@2
+    condition: succeeded()
+    name: CompareCert
+    inputs:
+      azureSubscription: "$(KEY_VAULT_SERVICE_CONNECTION)"
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        certdiff --old stable_chain.pem --new current_chain.pem --report-json report.json --verbose
+        cat report.json
+        certdiff --old stable_chain.pem --new current_chain.pem > output.txt
+        CONTENT=$(cat output.txt)
+        echo -e "##vso[task.setvariable variable=EMAILBODY]$(echo "$CONTENT" | sed ':a;N;$!ba;s/\n/<br>/g')"
+        certdiff --old stable_chain.pem --new current_chain.pem
+        cert_diff_status=$?
+        echo -e "##vso[task.setvariable variable=CERTDIFFSTATUS]$(echo "$cert_diff_status")"
+
+        if ! openssl x509 -inform pem -checkend $(($CERT_NAME_EXPIRE_SECONDS-518400)) -noout -in stable_chain.pem >/dev/null 2>&1; then 
+          echo "The certificate expires in less than $(($CERT_NAME_EXPIRE_SECONDS / 86400)) day. Proceeding with the switch task"
+          echo -e "##vso[task.setvariable variable=ACTION]Renew"
+          exit 0
+        fi
+        
+        if ! openssl x509 -inform pem -checkend $(CERT_NAME_EXPIRE_SECONDS) -noout -in stable_chain.pem >/dev/null 2>&1; then 
+          echo "The certificate expires in less than $(($CERT_NAME_EXPIRE_SECONDS / 86400)) day. Proceeding with the mail task"
+          echo -e "##vso[task.setvariable variable=ACTION]Mail"
+          exit 0
+        else
+          echo "The certificate is valid. No action required"
+          exit 0
+        fi
+
+  - template: templates/send-mail/template.yaml@azure
+    parameters:
+      CONDITION_FLAG: or(
+          eq(variables['ACTION'], 'Mail'),
+          eq(variables['FORCE_RENEW_CERT'], 'True')
+        )
+      MAIL_SUBJECT: "CertificateIssue - $(KEY_VAULT_CERT_NAME)"
+      MAIL_BODY: |
+        <html>
+          <body>
+            <p>This is an email to inform you that on <b>$(KEY_VAULT_CERT_NAME)</b> there some error with new certificate.</p>
+            <p>$(EMAILBODY)</p>
+          </body>
+        </html>
+      SENDER_EMAIL: "fabio.felici@pagopa.it"
+      RECEIVER_EMAIL: "umberto.coppolabottazzi@pagopa.it"
+      APP_PASS: $(APP_PASS)
+      ATTACHMENTS_COMMA_SEP: "current_chain.pem"
+
+  - task: AzureCLI@2
+    condition: or(
+        eq(variables['ACTION'], 'Renew'),
+        eq(variables['FORCE_RENEW_CERT'], 'True')
+      )
+    name: ChangeCertificate
+    inputs:
+      azureSubscription: "$(KEY_VAULT_SERVICE_CONNECTION)"
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        az keyvault certificate import --vault-name '$(KEY_VAULT_NAME)' --name '$(KEY_VAULT_CERT_NAME_STABLE)' -f current.pfx
