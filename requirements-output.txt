@@ -4,9 +4,9 @@ azure-common==1.1.27 ; python_full_version >= "3.8.0" and python_full_version < 
 azure-core==1.18.0 ; python_full_version >= "3.8.0" and python_full_version < "4.0.0" \
     --hash=sha256:3d7769c031822eab3b3ebd58299999b731b30cedb25d3a6c61e551926749c564 \
     --hash=sha256:7f17db829c926ab3b922d63b6f0b86ef3c597487fbb264defa8eb4ccb761e8a0
-azure-identity==1.6.0 ; python_full_version >= "3.8.0" and python_full_version < "4.0.0" \
-    --hash=sha256:2e70b00874e4f288e37804bc06bfaf216de8565c759594bf79cccfbf9ca2c78a \
-    --hash=sha256:87f63bf1f3f10b67a3e6689f06d0cf6cacdcd8e375c6da12ea71c111cfe58457
+azure-identity==1.16.1; python_full_version >= "3.8.0" and python_full_version < "4.0.0" \
+    --hash=sha256:6d93f04468f240d59246d8afde3091494a5040d4f141cad0f49fc0c399d0d91e \
+    --hash=sha256:8fb07c25642cd4ac422559a8b50d3e77f73dcc2bbfaba419d06d6c9d7cff6726
 azure-mgmt-core==1.3.0 ; python_full_version >= "3.8.0" and python_full_version < "4.0.0" \
     --hash=sha256:3ffb7352b39e5495dccc2d2b47254f4d82747aff4735e8bf3267c335b0c9bb40 \
     --hash=sha256:7b7fa952aeb9d3eaa13eff905880f3d3b62200f7be7a8ba5a50c8b2e7295322a
