@@ -135,7 +135,7 @@ jobs:
             <p>$(EMAILBODY)</p>
           </body>
         </html>
-      SENDER_EMAIL: "fabio.felici@pagopa.it"
+      SENDER_EMAIL: $(SENDER_EMAIL)
       RECEIVER_EMAIL: $(RECEIVER_EMAIL)
       APP_PASS: $(APP_PASS)
       ATTACHMENTS_COMMA_SEP: "current_chain.pem"
