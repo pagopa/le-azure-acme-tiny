@@ -6,7 +6,7 @@ resources:
     type: github
     name: pagopa/azure-pipeline-templates
     endpoint: 'azure-devops-github-ro'
-    ref: refs/heads/fix-environment
+    ref: refs/heads/master
   
 pool:
   vmImage: ubuntu-24.04
