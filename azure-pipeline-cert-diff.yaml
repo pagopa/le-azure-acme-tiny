@@ -6,10 +6,10 @@ resources:
     type: github
     name: pagopa/azure-pipeline-templates
     endpoint: 'azure-devops-github-ro'
-
+    ref: refs/heads/fix-environment
   
 pool:
-  vmImage: ubuntu-latest
+  vmImage: ubuntu-24.04
 
 jobs:
 - job: GetCert
@@ -152,3 +152,9 @@ jobs:
       scriptLocation: inlineScript
       inlineScript: |
         az keyvault certificate import --vault-name '$(KEY_VAULT_NAME)' --name '$(KEY_VAULT_CERT_NAME_STABLE)' -f current.pfx
+
+- template: templates/availability-publisher/template-job.yaml@terraform
+  parameters:
+    APP_INSIGHT_CONNECTION_STRING: $(APP_INSIGHT_CONNECTION_STRING)
+    PIPELINE_NAME: $(System.DefinitionName)
+    DEPENDS_ON: GetCert
