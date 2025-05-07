@@ -30,7 +30,8 @@ jobs:
       python -m pip install --require-hashes -r requirements-cert-diff.txt
 
   - task: PythonScript@0
-    arguments: '$(CERT_DIFF_VERSION)'
+    env:
+      CERT_DIFF_VERSION: $(CERT_DIFF_VERSION)
     inputs:
       scriptSource: 'inline'
       script: |
