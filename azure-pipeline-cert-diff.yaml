@@ -1,5 +1,11 @@
 trigger: none
 
+parameters:
+  - name: "CERT_DIFF_VERSION"
+    displayName: "Cert diff version to install"
+    type: string
+    default: "0.2.5"
+
 resources:
   repositories:
   - repository: azure
@@ -21,31 +27,50 @@ jobs:
 
   - script: |
       echo "Installing required packages..."
-      python -m pip install requests
+      python -m pip install --require-hashes -r requirements-cert-diff.txt
 
   - task: PythonScript@0
+    arguments: '$(CERT_DIFF_VERSION)'
     inputs:
       scriptSource: 'inline'
       script: |
-        import json
-        import requests
-
         import requests
         import shutil
+        import os
+        import hashlib
         
-        def download_file(url):
-            local_filename = url.split('/')[-1]
-            with requests.get(url, stream=True) as r:
-                with open(local_filename, 'wb') as f:
-                    shutil.copyfileobj(r.raw, f)
-            return local_filename        
+        version = os.environ.get("CERT_DIFF_VERSION")
         
-        response = requests.get("https://api.github.com/repos/pagopa/certdiff/releases/latest")
-        if response.status_code == 200:
-          wheel = response.json()["assets"][0]['browser_download_url']
-          download_file(wheel)
+        base_url = f"https://github.com/pagopa/certdiff/releases/download/v{version}/"
+        wheel_filename = f"certdiff-{version}-py3-none-any.whl"
+        sha_filename = f"certdiff-{version}-py3-none-any.whl" + ".sha256"
+        
+        def download_file(url, dest):
+          with requests.get(url, stream=True) as r:
+            r.raise_for_status()
+            with open(dest, 'wb') as f:
+                shutil.copyfileobj(r.raw, f)
+        
+        def compute_sha256(file_path):
+          sha256 = hashlib.sha256()
+          with open(file_path, 'rb') as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                sha256.update(chunk)
+          return sha256.hexdigest()
+        
+        download_file(base_url + wheel_filename, wheel_filename)
+        download_file(base_url + sha_filename, sha_filename)
+        
+        with open(sha_filename, 'r') as f:
+          first_line = f.readline().strip()
+          expected_hash = first_line.split()[0]
+        
+        actual_hash = compute_sha256(wheel_filename)
+        
+        if expected_hash == actual_hash:
+          print("✅ SHA256 verified: match")
         else:
-          raise("Unable to download wheel file from repository...")
+          raise Exception(f"❌ SHA256 mismatch:\nExpected: {expected_hash}\nActual:   {actual_hash}")
 
   - script: |
       pip install $(ls -1 certdiff*)
