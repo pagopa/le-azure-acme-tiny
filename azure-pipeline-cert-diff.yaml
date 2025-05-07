@@ -184,3 +184,13 @@ jobs:
     APP_INSIGHT_CONNECTION_STRING: $(APP_INSIGHT_CONNECTION_STRING)
     PIPELINE_NAME: $(System.DefinitionName)
     DEPENDS_ON: GetCert
+
+- task: Bash@3
+  name: CleanupEverything
+  condition: always()
+  inputs:
+    targetType: "inline"
+    script: |
+      rm -f *.pem
+      rm -f *.pfx
+      rm -f *.der
