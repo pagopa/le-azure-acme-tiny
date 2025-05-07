@@ -179,18 +179,18 @@ jobs:
       inlineScript: |
         az keyvault certificate import --vault-name '$(KEY_VAULT_NAME)' --name '$(KEY_VAULT_CERT_NAME_STABLE)' -f current.pfx
 
+  - task: Bash@3
+    name: CleanupEverything
+    condition: always()
+    inputs:
+      targetType: "inline"
+      script: |
+        rm -f *.pem
+        rm -f *.pfx
+        rm -f *.der
+
 - template: templates/availability-publisher/template-job.yaml@azure
   parameters:
     APP_INSIGHT_CONNECTION_STRING: $(APP_INSIGHT_CONNECTION_STRING)
     PIPELINE_NAME: $(System.DefinitionName)
     DEPENDS_ON: GetCert
-
-- task: Bash@3
-  name: CleanupEverything
-  condition: always()
-  inputs:
-    targetType: "inline"
-    script: |
-      rm -f *.pem
-      rm -f *.pfx
-      rm -f *.der
