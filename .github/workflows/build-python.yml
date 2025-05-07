@@ -27,7 +27,7 @@ jobs:
         # https://github.com/actions/setup-python/releases/tag/v5.1.0
         uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d
         with:
-          python-version-file: "../../.python-version"  
+          python-version-file: "/.python-version"  
 
       - name: install-py-deps
         run: pip3 install --require-hashes --requirement requirements-output.txt
@@ -46,7 +46,7 @@ jobs:
         # https://github.com/actions/setup-python/releases/tag/v5.1.0
         uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d
         with:
-          python-version-file: "../../.python-version"  
+          python-version-file: "/.python-version"  
 
       - name: install-py-deps
         run: pip3 install --require-hashes --requirement requirements-cert-diff.txt   
