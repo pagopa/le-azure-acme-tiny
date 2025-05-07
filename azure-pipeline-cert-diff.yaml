@@ -74,7 +74,7 @@ jobs:
           raise Exception(f"❌ SHA256 mismatch:\nExpected: {expected_hash}\nActual:   {actual_hash}")
 
   - script: |
-      pip install $(ls -1 certdiff*)
+      pip install $(ls -1 certdiff-${{ parameters.CERT_DIFF_VERSION }}-py3-none-any.whl)
       certdiff --help
 
   - task: AzureCLI@2
