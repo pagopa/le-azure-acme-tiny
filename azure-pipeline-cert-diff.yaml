@@ -31,7 +31,7 @@ jobs:
 
   - task: PythonScript@0
     env:
-      CERT_DIFF_VERSION: $(CERT_DIFF_VERSION)
+      CERT_DIFF_VERSION: ${{ parameters.CERT_DIFF_VERSION }}
     inputs:
       scriptSource: 'inline'
       script: |
