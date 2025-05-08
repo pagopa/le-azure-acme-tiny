@@ -53,6 +53,15 @@ stages:
             value: $[ dependencies.RenewalDecision.outputs['GetCertificateFromKeyVaultAndDecide.require_new_certificate'] ]
         steps:
           - script: |
+              PYTHON_VERSION=$(cat .python-version)
+              echo "##vso[task.setvariable variable=PYTHON_VERSION]$PYTHON_VERSION"
+            displayName: 'Read Python version'
+
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(PYTHON_VERSION)'
+
+          - script: |
               pip3 install --require-hashes --requirement requirements-output.txt
             name: InstallPythonDependencies
             condition: eq(variables.require_new_certificate, True)
