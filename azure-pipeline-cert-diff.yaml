@@ -1,11 +1,5 @@
 trigger: none
 
-parameters:
-  - name: "CERT_DIFF_VERSION"
-    displayName: "Cert diff version to install"
-    type: string
-    default: "0.2.5"
-
 resources:
   repositories:
   - repository: azure
@@ -36,7 +30,7 @@ jobs:
 
   - task: PythonScript@0
     env:
-      CERT_DIFF_VERSION: ${{ parameters.CERT_DIFF_VERSION }}
+      CERT_DIFF_VERSION: $(CERT_DIFF_VERSION)
     inputs:
       scriptSource: 'inline'
       script: |
@@ -79,7 +73,7 @@ jobs:
           raise Exception(f"❌ SHA256 mismatch:\nExpected: {expected_hash}\nActual:   {actual_hash}")
 
   - script: |
-      pip install $(ls -1 certdiff-${{ parameters.CERT_DIFF_VERSION }}-py3-none-any.whl)
+      pip install $(ls -1 certdiff-$(CERT_DIFF_VERSION)-py3-none-any.whl)
       certdiff --help
 
   - task: AzureCLI@2
@@ -91,7 +85,7 @@ jobs:
       inlineScript: |
         
         # Extract Force variable
-        FORCE_RENEW_CERT=$(az keyvault certificate show --vault-name '$(KEY_VAULT_NAME)' --name '$(KEY_VAULT_CERT_NAME_STABLE)' | jq -jr '.tags.Force')
+        FORCE_RENEW_CERT=$(az keyvault certificate show --vault-name '$(KEY_VAULT_NAME)' --name '$(KEY_VAULT_CERT_NAME)' | jq -jr '.tags.Force')
         echo -e "##vso[task.setvariable variable=FORCE_RENEW_CERT]$(echo "$FORCE_RENEW_CERT")"
         
         az keyvault secret download --file stable.pfx --encoding base64 --vault-name '$(KEY_VAULT_NAME)' --name '$(KEY_VAULT_CERT_NAME_STABLE)'  >/dev/null
@@ -136,6 +130,11 @@ jobs:
         certdiff --old stable_chain.pem --new current_chain.pem
         cert_diff_status=$?
         echo -e "##vso[task.setvariable variable=CERTDIFFSTATUS]$(echo "$cert_diff_status")"
+        
+        if [[ "$(FORCE_RENEW_CERT)" == "True" ]]; then
+          echo "FORCE_RENEW_CERT is True, setting RENEW_DAYS to Now"
+          echo -e "##vso[task.setvariable variable=RENEW_DAYS]Now"
+        fi
 
         if ! openssl x509 -inform pem -checkend $(($CERT_NAME_EXPIRE_SECONDS-518400)) -noout -in stable_chain.pem >/dev/null 2>&1; then 
           echo "The certificate expires in less than $(($CERT_NAME_EXPIRE_SECONDS / 86400)) day. Proceeding with the switch task"
@@ -146,6 +145,7 @@ jobs:
         if ! openssl x509 -inform pem -checkend $(CERT_NAME_EXPIRE_SECONDS) -noout -in stable_chain.pem >/dev/null 2>&1; then 
           echo "The certificate expires in less than $(($CERT_NAME_EXPIRE_SECONDS / 86400)) day. Proceeding with the mail task"
           echo -e "##vso[task.setvariable variable=ACTION]Mail"
+          echo -e "##vso[task.setvariable variable=RENEW_DAYS]in 7 days"
           exit 0
         else
           echo "The certificate is valid. No action required"
@@ -162,7 +162,8 @@ jobs:
       MAIL_BODY: |
         <html>
           <body>
-            <p>This is an email to inform you that on <b>$(KEY_VAULT_CERT_NAME)</b> there some error with new certificate.</p>
+            <p>This is an email to inform you that on <b>$(KEY_VAULT_CERT_NAME)</b> there some differences with new certificate.</p>
+            <p> The certificate will be renewed $(RENEW_DAYS).</p>
             <p>$(EMAILBODY)</p>
           </body>
         </html>
@@ -182,7 +183,8 @@ jobs:
       scriptType: bash
       scriptLocation: inlineScript
       inlineScript: |
-        az keyvault certificate import --vault-name '$(KEY_VAULT_NAME)' --name '$(KEY_VAULT_CERT_NAME_STABLE)' -f current.pfx
+        az keyvault certificate import --vault-name '$(KEY_VAULT_NAME)' --name '$(KEY_VAULT_CERT_NAME_STABLE)' -f current.pfx >/dev/null
+        az keyvault certificate set-attributes --vault-name '$(KEY_VAULT_NAME)' --name '$(KEY_VAULT_CERT_NAME)' --tags "Force"="False" >/dev/null
 
   - task: Bash@3
     name: CleanupEverything
