@@ -5,7 +5,7 @@ resources:
   - repository: azure
     type: github
     name: pagopa/azure-pipeline-templates
-    endpoint: 'azure-devops-github-ro'
+    endpoint: ${{ parameters.repo_endpoint }}
     ref: refs/heads/master
   
 pool:
