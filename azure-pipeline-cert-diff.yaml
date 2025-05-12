@@ -5,7 +5,7 @@ resources:
   - repository: azure
     type: github
     name: pagopa/azure-pipeline-templates
-    endpoint: ${{ parameters.repo_endpoint }}
+    endpoint: 'azure-devops-github-ro'
     ref: refs/heads/master
   
 pool:
@@ -124,16 +124,13 @@ jobs:
       inlineScript: |
         certdiff --old stable_chain.pem --new current_chain.pem --report-json report.json --verbose
         cat report.json
-        certdiff --old stable_chain.pem --new current_chain.pem > output.txt
-        CONTENT=$(cat output.txt)
-        echo -e "##vso[task.setvariable variable=EMAILBODY]$(echo "$CONTENT" | sed ':a;N;$!ba;s/\n/<br>/g')"
         certdiff --old stable_chain.pem --new current_chain.pem
         cert_diff_status=$?
-        echo -e "##vso[task.setvariable variable=CERTDIFFSTATUS]$(echo "$cert_diff_status")"
         
         if [[ "$(FORCE_RENEW_CERT)" == "True" ]]; then
           echo "FORCE_RENEW_CERT is True, setting RENEW_DAYS to Now"
           echo -e "##vso[task.setvariable variable=RENEW_DAYS]Now"
+          exit 0
         fi
 
         if ! openssl x509 -inform pem -checkend $(($CERT_NAME_EXPIRE_SECONDS-518400)) -noout -in stable_chain.pem >/dev/null 2>&1; then 
@@ -151,6 +148,54 @@ jobs:
           echo "The certificate is valid. No action required"
           exit 0
         fi
+
+  - task: PythonScript@0
+    name: PrepareMail
+    condition: or(
+        eq(variables['ACTION'], 'Mail'),
+        eq(variables['FORCE_RENEW_CERT'], 'True')
+      )
+    inputs:
+      scriptSource: 'inline'
+      script: |
+        import json
+
+        def format_change(field, old, new):
+            return (
+                f"<li><b>{field}:</b> "
+                f"From <span style='color:blue;'>{old}</span> "
+                f"to <span style='color:red;'>{new}</span>"
+                f"</li>"
+            )
+  
+        def generate_html(data):
+            sections = []
+  
+            for cert_type in ['root', 'intermediate', 'leaf']:
+                changes = [d for d in data.get("differences", []) if d["type"] == cert_type]
+                section = f"<p><b>{cert_type.capitalize()} Changes:</b></p><ul>"
+  
+                if not changes:
+                    section += "<li><span style='color:gray;'>No changes</span></li>"
+                else:
+                    for field in ['issuer', 'subject']:
+                        relevant = [c for c in changes if c["field"] == field]
+                        if relevant:
+                            for c in relevant:
+                                section += format_change(field.capitalize(), c["old"], c["new"])
+                        else:
+                            section += f"<li><b>{field.capitalize()}:</b><span style='color:gray;'> No changes</span></li>"
+  
+                section += "</ul>"
+                sections.append(section)
+  
+            return "".join(sections)
+        
+        with open("report.json", "r") as f:
+            input_data = json.load(f)
+        
+        html_output = generate_html(input_data)
+        print(f"##vso[task.setvariable variable=EMAILBODY;]{html_output}")
 
   - template: templates/send-mail/template.yaml@azure
     parameters:
