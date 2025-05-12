@@ -167,33 +167,28 @@ jobs:
                 f"to <span style='color:red;'>{new}</span>"
                 f"</li>"
             )
-  
+
         def generate_html(data):
             sections = []
-  
             for cert_type in ['root', 'intermediate', 'leaf']:
                 changes = [d for d in data.get("differences", []) if d["type"] == cert_type]
                 section = f"<p><b>{cert_type.capitalize()} Changes:</b></p><ul>"
-  
-                if not changes:
-                    section += "<li><span style='color:gray;'>No changes</span></li>"
+        
+                relevant = [c for c in changes if c["field"] == "not_valid_after"]
+                if relevant:
+                    for c in relevant:
+                        section += format_change("Not valid after", c["old"], c["new"])
                 else:
-                    for field in ['issuer', 'subject']:
-                        relevant = [c for c in changes if c["field"] == field]
-                        if relevant:
-                            for c in relevant:
-                                section += format_change(field.capitalize(), c["old"], c["new"])
-                        else:
-                            section += f"<li><b>{field.capitalize()}:</b><span style='color:gray;'> No changes</span></li>"
-  
+                    section += "<li><b>Not valid after:</b> <span style='color:gray;'>No changes</span></li>"
+
                 section += "</ul>"
                 sections.append(section)
-  
+
             return "".join(sections)
-        
+
         with open("report.json", "r") as f:
             input_data = json.load(f)
-        
+
         html_output = generate_html(input_data)
         print(f"##vso[task.setvariable variable=EMAILBODY;]{html_output}")
 
