@@ -5,7 +5,7 @@ resources:
   - repository: azure
     type: github
     name: pagopa/azure-pipeline-templates
-    endpoint: 'azure-devops-github-ro'
+    endpoint: 'io-azure-devops-github-ro'
     ref: refs/heads/master
   
 pool:
@@ -125,7 +125,6 @@ jobs:
         certdiff --old stable_chain.pem --new current_chain.pem --report-json report.json --verbose
         cat report.json
         certdiff --old stable_chain.pem --new current_chain.pem
-        cert_diff_status=$?
         
         if [[ "$(FORCE_RENEW_CERT)" == "True" ]]; then
           echo "FORCE_RENEW_CERT is True, setting RENEW_DAYS to Now"
