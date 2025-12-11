@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Scopo: client ACME custom
 # Copyright Daniel Roesler, under MIT license, see LICENSE at github.com/diafygi/acme-tiny
 
 import argparse
