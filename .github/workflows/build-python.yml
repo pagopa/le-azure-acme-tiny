@@ -1,3 +1,4 @@
+# Scopo: build e test
 name: "Build Python"
 
 on:
